@@ -20,6 +20,8 @@ import {
 import {
   detectContentType,
   updateContactAvatar,
+  isRecallMessage,
+  extractRecallMsgId,
 } from "./zalo-message-helpers.js";
 
 // Cached user info entry with 5-minute TTL
@@ -123,9 +125,14 @@ export function attachZaloListener(ctx: ListenerContext): void {
         // FIX: For self-sent DMs, resolve the RECIPIENT so we can show/upsert them
         const recipientUid = conversationThreadId;
         if (recipientUid && api.getUserInfo) {
-          const userInfo = await resolveZaloName(api, recipientUid, userInfoCache);
+          const userInfo = await resolveZaloName(
+            api,
+            recipientUid,
+            userInfoCache,
+          );
           if (userInfo.zaloName) senderName = userInfo.zaloName;
-          if (userInfo.avatar) updateContactAvatar(recipientUid, userInfo.avatar);
+          if (userInfo.avatar)
+            updateContactAvatar(recipientUid, userInfo.avatar);
         }
       } else if (!isSelf && senderUid && api.getUserInfo) {
         const userInfo = await resolveZaloName(api, senderUid, userInfoCache);
@@ -139,30 +146,37 @@ export function attachZaloListener(ctx: ListenerContext): void {
       }
 
       const rawContent = message.data?.content;
-
-      // BỘ LỌC: Bỏ qua tin nhắn hệ thống (Thu hồi/Xóa) để tránh hiện JSON ra màn hình
-      if (Array.isArray(rawContent) && rawContent[0]?.globalDelMsgId) {
-        // Đây là tin nhắn thông báo thu hồi, đã được xử lý ở listener.on("undo")
-        // nên ta bỏ qua không lưu thành tin nhắn mới.
-        return;
-      }
-      
-      // Bỏ qua nếu là tin nhắn hệ thống có msgType đặc biệt (thường là 19 hoặc nội dung chứa actionType)
-      if (message.data?.msgType === 19 || (typeof rawContent === 'string' && rawContent.includes('actionType'))) {
-        return;
-      }
       const content =
         typeof rawContent === "string"
           ? rawContent
           : JSON.stringify(rawContent || "");
       const contentType = detectContentType(message.data?.msgType, rawContent);
 
-      // --- CHẶN TIN NHẮN HỆ THỐNG / THU HỒI DẠNG JSON ---
-      if (contentType === 'system') {
-        return; // Dừng lại ở đây, không gọi handleIncomingMessage, không lưu vào DB
+      // FIX: Phát hiện tin nhắn thu hồi gửi qua event "message" (không phải "undo")
+      // Dạng: [{"type":1,"actionType":0,"clientDelMsgId":...,"globalDelMsgId":...}]
+      if (isRecallMessage(content)) {
+        const recallMsgId = extractRecallMsgId(content);
+        if (recallMsgId) {
+          logger.info(
+            `[zalo:${accountId}] Recall message detected, marking msgId=${recallMsgId} as deleted`,
+          );
+          await handleMessageUndo(accountId, recallMsgId);
+          io?.emit("chat:deleted", { accountId, msgId: recallMsgId });
+        }
+        return; // Không lưu tin nhắn này vào DB
       }
 
-      // FIX: pass recipientUid for self-sent DMs...
+      // FIX: Bỏ qua bubble message (sendBubbleMessage) — loại tin nhắn đặc biệt
+      // của Zalo (card/interactive) mà zca-js chưa parse được nội dung
+      if (
+        contentType === "bubble" ||
+        message.data?.msgType?.includes?.("sendBubble")
+      ) {
+        logger.debug(
+          `[zalo:${accountId}] Skipping bubble message (msgId: ${message.data?.msgId})`,
+        );
+        return;
+      }
 
       // FIX: pass recipientUid for self-sent DMs so message-handler
       // can upsert the contact on the OTHER side of the conversation

@@ -17,10 +17,8 @@ import { config } from './config/index.js';
 import { prisma } from './shared/database/prisma-client.js';
 import { logger } from './shared/utils/logger.js';
 import { authRoutes } from './modules/auth/auth-routes.js';
-import { roleRoutes } from './modules/auth/role-routes.js';
 import { zaloRoutes } from './modules/zalo/zalo-routes.js';
 import { chatRoutes } from './modules/chat/chat-routes.js';
-import { labelRoutes } from './modules/chat/label-routes.js';
 import { contactRoutes } from './modules/contacts/contact-routes.js';
 import { contactSubResourceRoutes } from './modules/contacts/contact-sub-resource-routes.js';
 import { appointmentRoutes } from './modules/contacts/appointment-routes.js';
@@ -109,10 +107,8 @@ async function bootstrap() {
   // ── Routes ────────────────────────────────────────────────────────────────
 
   await app.register(authRoutes);
-  await app.register(roleRoutes);
   await app.register(zaloRoutes);
   await app.register(chatRoutes);
-  await app.register(labelRoutes);
   await app.register(contactRoutes);
   await app.register(contactSubResourceRoutes);
   await app.register(appointmentRoutes);
