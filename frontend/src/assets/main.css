@@ -1,0 +1,159 @@
+/* ─────────────────────────────────────────────────────────────────
+   ZaloCRM — main.css  (reset + design tokens + shell layout only)
+   Vuetify component styles (v-card, v-btn…) intentionally NOT
+   overridden here — they live inside each .vue <style scoped>.
+───────────────────────────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap");
+
+/* ── 1. Hard reset ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0; padding: 0;
+  height: 100%; width: 100%;
+  font-family: "DM Sans", "Roboto", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 2. Vuetify global font override ── */
+.v-application {
+  font-family: "DM Sans", "Roboto", sans-serif !important;
+}
+
+/* ── 3. CSS custom properties — dark theme (default) ── */
+:root,
+.v-theme--dark {
+  --crm-bg:           #0D0F12;
+  --crm-sidebar:      #111318;
+  --crm-surface:      #181C22;
+  --crm-surface-2:    #1E2330;
+  --crm-hover:        rgba(255,255,255,.05);
+  --crm-active:       rgba(0,104,255,.15);
+  --crm-border:       rgba(255,255,255,.07);
+  --crm-border-s:     rgba(255,255,255,.12);
+  --crm-text:         #E8EAF0;
+  --crm-text-2:       #7A8299;
+  --crm-text-3:       #4A5168;
+  --crm-accent:       #0068FF;
+  --crm-accent-soft:  rgba(0,104,255,.12);
+  --crm-accent-text:  #4D9FFF;
+  --crm-green:        #22C55E;
+  --crm-green-soft:   rgba(34,197,94,.12);
+  --crm-amber:        #F59E0B;
+  --crm-amber-soft:   rgba(245,158,11,.12);
+  --crm-red:          #EF4444;
+  --crm-red-soft:     rgba(239,68,68,.12);
+  --crm-radius-sm:    6px;
+  --crm-radius-md:    10px;
+  --crm-radius-lg:    14px;
+  --crm-sidebar-w:    228px;
+  --crm-topbar-h:     56px;
+  --crm-scrollbar:    rgba(255,255,255,.08);
+}
+
+/* ── 4. Light theme overrides ── */
+.v-theme--light {
+  --crm-bg:           #F4F6FA;
+  --crm-sidebar:      #FFFFFF;
+  --crm-surface:      #FFFFFF;
+  --crm-surface-2:    #F0F2F8;
+  --crm-hover:        rgba(0,0,0,.04);
+  --crm-active:       rgba(0,104,255,.08);
+  --crm-border:       rgba(0,0,0,.07);
+  --crm-border-s:     rgba(0,0,0,.12);
+  --crm-text:         #0E1117;
+  --crm-text-2:       #5C6478;
+  --crm-text-3:       #9AA0B5;
+  --crm-accent-text:  #0057CC;
+  --crm-scrollbar:    rgba(0,0,0,.1);
+}
+
+/* ── 5. Scrollbar ── */
+::-webkit-scrollbar          { width: 4px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: var(--crm-scrollbar); border-radius: 4px; }
+
+/* ── 6. v-application background — let our sidebar/main handle bg ── */
+.v-application { background: var(--crm-bg) !important; }
+
+/* ── 7. Disable leftover Vuetify app-bar & drawer global overrides
+        (the old main.css painted these with liquid-bg colors — neutralise) ── */
+.v-app-bar       { background: var(--crm-sidebar)  !important; border-bottom: 1px solid var(--crm-border)  !important; backdrop-filter: none !important; }
+.v-navigation-drawer { background: var(--crm-sidebar) !important; border-right:  1px solid var(--crm-border) !important; backdrop-filter: none !important; }
+
+/* ── 8. v-card — clean surface, no glass ── */
+.v-card {
+  background: var(--crm-surface) !important;
+  border: 1px solid var(--crm-border) !important;
+  backdrop-filter: none !important;
+}
+.v-theme--light .v-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,.08) !important;
+}
+
+/* ── 9. v-main padding reset  ── */
+.v-main { background: var(--crm-bg) !important; }
+
+/* ── 10. Message bubbles (kept from original, adjusted colors) ── */
+.message-bubble { animation: crm-fade-up .25s ease; }
+@keyframes crm-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.message-bubble.bg-primary {
+  background: var(--crm-accent) !important;
+  color: #fff !important;
+  border-radius: 16px 16px 4px 16px !important;
+}
+.message-bubble:not(.bg-primary) {
+  background: var(--crm-surface-2) !important;
+  border: 1px solid var(--crm-border) !important;
+  border-radius: 4px 16px 16px 16px !important;
+  color: var(--crm-text) !important;
+}
+.v-theme--light .message-bubble:not(.bg-primary) {
+  background: #EAEDF3 !important;
+  border: 1px solid rgba(0,0,0,.07) !important;
+  color: #111 !important;
+}
+.msg-time-self    { color: rgba(255,255,255,.65) !important; }
+.msg-time-contact { color: var(--crm-text-3) !important; }
+
+/* ── 11. Data table ── */
+.v-data-table { background: transparent !important; }
+.v-data-table .v-table__wrapper {
+  background: var(--crm-surface);
+  border-radius: var(--crm-radius-lg);
+  border: 1px solid var(--crm-border);
+}
+
+/* ── 12. List item active/hover ── */
+.v-list-item--active {
+  background: var(--crm-active) !important;
+  color: var(--crm-accent-text) !important;
+}
+.v-list-item:hover:not(.v-list-item--active) {
+  background: var(--crm-hover) !important;
+}
+
+/* ── 13. Chat layout helpers (used inside ChatView) ── */
+.chat-input-area {
+  border-top: 1px solid var(--crm-border);
+  background: var(--crm-sidebar);
+}
+.chat-messages-area { background: var(--crm-bg); }
+.conversation-active {
+  background: var(--crm-active) !important;
+  border: 1px solid rgba(0,104,255,.2) !important;
+}
+.conversation-list { background: var(--crm-sidebar); }
+.chat-header {
+  border-bottom: 1px solid var(--crm-border);
+  background: var(--crm-sidebar);
+}
+
+/* ── 14. Misc ── */
+.v-alert  { border-radius: var(--crm-radius-lg) !important; }
+.v-chip   { font-weight: 500 !important; }
+.v-dialog .v-card { backdrop-filter: none !important; }
