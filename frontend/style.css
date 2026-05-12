@@ -1,0 +1,3 @@
+/* style.css — chỉ giữ body reset, bỏ toàn bộ #app layout cũ
+   vì #app giờ được quản lý bởi DefaultLayout.vue */
+body { margin: 0; padding: 0; }
