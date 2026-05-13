@@ -3,10 +3,8 @@ import { api } from '@/api/index';
 import { io, Socket } from 'socket.io-client';
 import type { Contact } from '@/composables/use-contacts';
 
-interface ZaloAccount {
-  id: string;
-  displayName: string | null;
-}
+interface ZaloAccount { id: string; displayName: string | null; }
+export interface Label { id: string; name: string; color: string; } // <--- ĐÃ THÊM DÒNG NÀY
 
 interface ConversationMessage {
   content: string | null;
@@ -24,6 +22,7 @@ export interface Conversation {
   lastMessageAt: string | null;
   unreadCount: number;
   isReplied: boolean;
+  labels: Label[]; // <--- ĐÃ SỬA THÀNH BẮT BUỘC VÀ DÙNG INTERFACE Label
   messages?: ConversationMessage[];
 }
 
@@ -49,9 +48,7 @@ export function useChat() {
   const accountFilter = ref<string | null>(null);
   let socket: Socket | null = null;
 
-  const selectedConv = computed(() =>
-    conversations.value.find(c => c.id === selectedConvId.value) || null,
-  );
+  const selectedConv = computed(() => conversations.value.find(c => c.id === selectedConvId.value) || null);
 
   async function fetchConversations() {
     loadingConvs.value = true;
@@ -60,11 +57,7 @@ export function useChat() {
         params: { limit: 100, search: searchQuery.value, accountId: accountFilter.value || undefined },
       });
       conversations.value = res.data.conversations;
-    } catch (err) {
-      console.error('Failed to fetch conversations:', err);
-    } finally {
-      loadingConvs.value = false;
-    }
+    } catch (err) { console.error('Failed to fetch conversations:', err); } finally { loadingConvs.value = false; }
   }
 
   async function selectConversation(convId: string) {
@@ -76,32 +69,28 @@ export function useChat() {
       const conv = conversations.value.find(c => c.id === convId);
       if (conv && convDetail.data.contact) {
         conv.contact = convDetail.data.contact;
+        conv.labels = convDetail.data.labels || []; // <--- ĐÃ THÊM DÒNG NÀY
       }
     } catch {
       // Non-critical — panel will show partial data from list
     }
     // Mark as read
-    try {
-      await api.post(`/conversations/${convId}/mark-read`);
-      const conv = conversations.value.find(c => c.id === convId);
-      if (conv) conv.unreadCount = 0;
-    } catch {
-      // Ignore mark-read errors
-    }
+    // TẮT TÍNH NĂNG TỰ ĐỘNG ĐÁNH DẤU ĐÃ ĐỌC ĐỂ GIỮ CẢNH BÁO CHO APP ZALO
+    // try {
+    //   await api.post(`/conversations/${convId}/mark-read`);
+    //   const conv = conversations.value.find(c => c.id === convId);
+    //   if (conv) conv.unreadCount = 0;
+    // } catch {
+    //   // Ignore mark-read errors
+    // }
   }
 
   async function fetchMessages(convId: string) {
     loadingMsgs.value = true;
     try {
-      const res = await api.get(`/conversations/${convId}/messages`, {
-        params: { limit: 100 },
-      });
+      const res = await api.get(`/conversations/${convId}/messages`, { params: { limit: 100 } });
       messages.value = res.data.messages;
-    } catch (err) {
-      console.error('Failed to fetch messages:', err);
-    } finally {
-      loadingMsgs.value = false;
-    }
+    } catch (err) { console.error('Failed to fetch messages:', err); } finally { loadingMsgs.value = false; }
   }
 
   async function sendMessage(content: string) {
@@ -109,109 +98,55 @@ export function useChat() {
     sendingMsg.value = true;
     try {
       const res = await api.post(`/conversations/${selectedConvId.value}/messages`, { content });
-      // FIX: Don't push here — the socket 'chat:message' event will deliver it.
-      // Pushing here AND from socket caused duplicates in the message list.
-      // The socket event fires immediately after the REST response because the
-      // server emits io.emit('chat:message') inside the same send handler.
-      //
-      // However if socket is not connected, push directly as fallback:
-      if (!socket?.connected) {
-        messages.value.push(res.data);
+      if (!socket?.connected) { messages.value.push(res.data); }
+    } catch (err) { console.error('Failed to send message:', err); } finally { sendingMsg.value = false; }
+  }
+
+  // HÀM MỚI: Cập nhật nhãn cho hội thoại
+  async function updateLabels(convId: string, labelIds: string[]) {
+    try {
+      await api.put(`/conversations/${convId}/labels`, { labelIds });
+      const conv = conversations.value.find(c => c.id === convId);
+      if (conv) {
+        const resLabels = await api.get('/labels');
+        conv.labels = resLabels.data.filter((l: any) => labelIds.includes(l.id));
       }
-    } catch (err) {
-      console.error('Failed to send message:', err);
-    } finally {
-      sendingMsg.value = false;
-    }
+    } catch (err) { console.error('Failed to update labels', err); }
   }
 
   function initSocket() {
     socket = io({ transports: ['websocket', 'polling'] });
-
     socket.on('chat:message', (data: { message: Message; conversationId: string; accountId: string }) => {
-      // FIX: Add to messages if currently viewing this conversation (dedup by id)
       if (data.conversationId === selectedConvId.value) {
-        if (!messages.value.find(m => m.id === data.message.id)) {
-          messages.value.push(data.message);
-        }
+        if (!messages.value.find(m => m.id === data.message.id)) { messages.value.push(data.message); }
       }
-
-      /**
-       * FIX: Update conversation list in-place instead of re-fetching.
-       *
-       * Previous: fetchConversations() on every message → full list reload →
-       *   - N*API calls on busy chats
-       *   - Conversation list flickers / loses scroll position
-       *   - Self-sent messages from Zalo app caused a reload but the conversation
-       *     was not found in list (contactId was null) so it appeared to not update
-       *
-       * New: find the conversation in local state and update its preview fields.
-       * If not found (new conversation), do a targeted fetch for just that conversation
-       * and prepend it to the list.
-       */
       const existingConv = conversations.value.find(c => c.id === data.conversationId);
       if (existingConv) {
         existingConv.lastMessageAt = data.message.sentAt;
-        // Only increment unread if NOT currently viewing this conversation
-        // and message is from contact (not self)
         if (data.conversationId !== selectedConvId.value && data.message.senderType !== 'self') {
           existingConv.unreadCount = (existingConv.unreadCount || 0) + 1;
           existingConv.isReplied = false;
         }
         if (data.message.senderType === 'self') {
           existingConv.isReplied = true;
-          if (data.conversationId === selectedConvId.value) {
-            existingConv.unreadCount = 0;
-          }
+          if (data.conversationId === selectedConvId.value) existingConv.unreadCount = 0;
         }
-        // Bubble to top of list
         const idx = conversations.value.indexOf(existingConv);
-        if (idx > 0) {
-          conversations.value.splice(idx, 1);
-          conversations.value.unshift(existingConv);
-        }
+        if (idx > 0) { conversations.value.splice(idx, 1); conversations.value.unshift(existingConv); }
       } else {
-        // New conversation (e.g. first message from a new contact) — fetch it
-        api.get(`/conversations/${data.conversationId}`)
-          .then(res => {
-            if (res.data) {
-              conversations.value.unshift(res.data);
-            }
-          })
-          .catch(() => {
-            // Fallback: full reload if we can't fetch individual conversation
-            fetchConversations();
-          });
+        api.get(`/conversations/${data.conversationId}`).then(res => { if (res.data) conversations.value.unshift(res.data); });
       }
     });
-
     socket.on('chat:deleted', (data: { msgId: string }) => {
       const msg = messages.value.find(m => m.zaloMsgId === data.msgId);
-      if (msg) {
-        msg.isDeleted = true;
-      }
+      if (msg) { msg.isDeleted = true; }
     });
   }
 
-  function destroySocket() {
-    socket?.disconnect();
-    socket = null;
-  }
+  function destroySocket() { socket?.disconnect(); socket = null; }
 
   return {
-    conversations,
-    selectedConvId,
-    selectedConv,
-    messages,
-    loadingConvs,
-    loadingMsgs,
-    sendingMsg,
-    searchQuery,
-    accountFilter,
-    fetchConversations,
-    selectConversation,
-    sendMessage,
-    initSocket,
-    destroySocket,
+    conversations, selectedConvId, selectedConv, messages, loadingConvs, loadingMsgs, sendingMsg, searchQuery, accountFilter,
+    fetchConversations, selectConversation, sendMessage, updateLabels, initSocket, destroySocket,
   };
 }

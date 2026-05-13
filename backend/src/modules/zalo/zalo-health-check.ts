@@ -1,10 +1,5 @@
-/**
- * zalo-health-check.ts — Cron-based health monitor for Zalo account connections.
- * Runs every 5 minutes to detect disconnected accounts and auto-reconnect them.
- * Also runs a daily session refresh at 04:00 UTC to keep cookies fresh.
- */
 import cron from 'node-cron';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // <--- ĐÃ XÓA DÒNG NÀY
 import { zaloPool } from './zalo-pool.js';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { logger } from '../../shared/utils/logger.js';
@@ -14,7 +9,7 @@ export function startZaloHealthCheck(): void {
   cron.schedule('*/5 * * * *', async () => {
     try {
       const accounts = await prisma.zaloAccount.findMany({
-        where: { sessionData: { not: Prisma.JsonNull } },
+        where: { sessionData: { not: null } }, // <--- ĐÃ SỬA DÒNG NÀY
         select: { id: true, displayName: true, sessionData: true },
       });
 
@@ -40,7 +35,7 @@ export function startZaloHealthCheck(): void {
     logger.info('[health-check] Daily session refresh starting...');
     try {
       const accounts = await prisma.zaloAccount.findMany({
-        where: { sessionData: { not: Prisma.JsonNull } },
+        where: { sessionData: { not: null } }, // <--- ĐÃ SỬA DÒNG NÀY
         select: { id: true, sessionData: true },
       });
 

@@ -63,6 +63,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/labels',
+    name: 'Labels',
+    component: () => import('@/views/LabelsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/api-settings',
     name: 'ApiSettings',
     component: () => import('@/views/ApiSettingsView.vue'),

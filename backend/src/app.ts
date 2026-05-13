@@ -12,13 +12,15 @@ import { Server } from 'socket.io';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // <--- ĐÃ XÓA DÒNG NÀY
 import { config } from './config/index.js';
 import { prisma } from './shared/database/prisma-client.js';
 import { logger } from './shared/utils/logger.js';
 import { authRoutes } from './modules/auth/auth-routes.js';
+import { roleRoutes } from './modules/auth/role-routes.js';
 import { zaloRoutes } from './modules/zalo/zalo-routes.js';
 import { chatRoutes } from './modules/chat/chat-routes.js';
+import { labelRoutes } from './modules/chat/label-routes.js';
 import { contactRoutes } from './modules/contacts/contact-routes.js';
 import { contactSubResourceRoutes } from './modules/contacts/contact-sub-resource-routes.js';
 import { appointmentRoutes } from './modules/contacts/appointment-routes.js';
@@ -107,8 +109,10 @@ async function bootstrap() {
   // ── Routes ────────────────────────────────────────────────────────────────
 
   await app.register(authRoutes);
+  await app.register(roleRoutes);
   await app.register(zaloRoutes);
   await app.register(chatRoutes);
+  await app.register(labelRoutes);
   await app.register(contactRoutes);
   await app.register(contactSubResourceRoutes);
   await app.register(appointmentRoutes);
@@ -175,7 +179,7 @@ async function bootstrap() {
   // Reconnect Zalo accounts that have saved sessions (staggered to avoid rate limits)
   try {
     const accounts = await prisma.zaloAccount.findMany({
-      where: { sessionData: { not: Prisma.JsonNull } },
+      where: { sessionData: { not: null } }, // <--- ĐÃ SỬA DÒNG NÀY
       select: { id: true, sessionData: true },
     });
     logger.info(`Attempting reconnect for ${accounts.length} Zalo account(s)`);

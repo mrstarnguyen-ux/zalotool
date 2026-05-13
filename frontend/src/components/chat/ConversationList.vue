@@ -1,280 +1,87 @@
 <template>
-  <div
-    class="conversation-list d-flex flex-column"
-    style="
-      width: 100%;
-      border-right: 1px solid var(--border-glow, rgba(0, 242, 255, 0.1));
-      height: 100%;
-    "
-  >
-    <!-- Account filter + Search -->
-    <div class="pa-2">
-      <v-select
-        v-model="selectedAccountId"
-        :items="accountOptions"
-        item-title="text"
-        item-value="value"
-        label="Tất cả Zalo"
-        density="compact"
-        variant="solo-filled"
-        hide-details
-        clearable
-        class="mb-2"
-        @update:model-value="$emit('filter-account', $event)"
-      />
-      <v-text-field
-        :model-value="search"
-        @update:model-value="$emit('update:search', $event)"
-        placeholder="Tìm kiếm..."
-        prepend-inner-icon="mdi-magnify"
-        variant="solo-filled"
-        density="compact"
-        hide-details
-        clearable
-      />
-    </div>
-
-    <!-- List -->
-    <v-list class="flex-grow-1 overflow-y-auto pa-0" density="compact">
-      <v-progress-linear v-if="loading" indeterminate color="primary" />
-
+  <div class="flex-grow-1 overflow-y-auto">
+    <v-list lines="two" class="pa-0">
       <v-list-item
         v-for="conv in conversations"
         :key="conv.id"
-        :active="conv.id === selectedId"
+        :active="selectedId === conv.id"
+        color="primary"
         @click="$emit('select', conv.id)"
-        class="py-2"
-        :class="{
-          'conversation-active': conv.id === selectedId,
-          'bg-blue-lighten-5': conv.unreadCount > 0 && conv.id !== selectedId,
-        }"
+        class="border-bottom"
       >
-        <template #prepend>
-          <v-avatar size="40" color="grey-lighten-2">
-            <v-icon
-              v-if="conv.threadType === 'group'"
-              icon="mdi-account-group"
-            />
-            <v-img
-              v-else-if="conv.contact?.avatarUrl"
-              :src="conv.contact.avatarUrl"
-            />
+        <template v-slot:prepend>
+          <v-avatar size="48" color="grey-lighten-3">
+            <v-icon v-if="conv.threadType === 'group'" icon="mdi-account-group" />
+            <v-img v-else-if="conv.contact?.avatarUrl" :src="conv.contact.avatarUrl" />
             <v-icon v-else icon="mdi-account" />
           </v-avatar>
         </template>
 
         <v-list-item-title class="d-flex align-center">
-          <span
-            class="text-truncate"
-            :class="{ 'font-weight-bold': conv.unreadCount > 0 }"
-          >
-            {{
-              conv.threadType === "group"
-                ? conv.contact?.fullName || "Nhóm"
-                : conv.contact?.fullName || "Unknown"
-            }}
-          </span>
-          <v-chip
-            v-if="conv.threadType === 'group'"
-            size="x-small"
-            color="info"
-            variant="tonal"
-            class="ml-1"
-            >Nhóm</v-chip
-          >
+          <span class="font-weight-bold text-truncate">{{ conv.contact?.fullName || 'Unknown' }}</span>
           <v-spacer />
-          <span class="text-caption text-grey ml-1">{{
-            formatTime(conv.lastMessageAt)
-          }}</span>
+          <span class="text-caption text-grey">{{ formatTime(conv.lastMessageAt) }}</span>
         </v-list-item-title>
 
-        <v-list-item-subtitle class="d-flex align-center">
-          <span
-            class="text-truncate"
-            style="max-width: 200px"
-            :class="{ 'font-weight-medium': conv.unreadCount > 0 }"
-          >
-            {{ lastMessagePreview(conv) }}
-          </span>
-          <v-spacer />
-          <v-badge
-            v-if="conv.unreadCount > 0"
-            :content="conv.unreadCount"
-            color="error"
-            inline
-          />
+        <v-list-item-subtitle>
+          <div v-if="conv.labels && conv.labels.length > 0" class="d-flex flex-wrap mb-1">
+            <div v-for="label in conv.labels" :key="label.id" 
+                 :style="{ backgroundColor: label.color }" 
+                 style="width: 12px; height: 4px; border-radius: 2px; margin-right: 2px;"
+                 :title="label.name">
+            </div>
+          </div>
+          <div class="d-flex align-center">
+            <span v-if="conv.isReplied" class="text-caption text-grey mr-1">Bạn:</span>
+            <span class="text-truncate" :class="conv.unreadCount > 0 ? 'text-black font-weight-medium' : 'text-grey'">
+              {{ getPreviewText(conv) }}
+            </span>
+            <v-spacer />
+            <v-badge v-if="conv.unreadCount > 0" :content="conv.unreadCount" color="error" inline />
+          </div>
         </v-list-item-subtitle>
-
-        <!-- Zalo account indicator -->
-        <template #append>
-          <span
-            v-if="conv.zaloAccount?.displayName"
-            class="text-caption text-grey-darken-1 ml-1"
-            style="
-              font-size: 0.65rem;
-              max-width: 60px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            "
-          >
-            {{ conv.zaloAccount.displayName }}
-          </span>
-        </template>
       </v-list-item>
-
-      <div
-        v-if="!loading && conversations.length === 0"
-        class="text-center pa-8 text-grey"
-      >
-        Chưa có cuộc trò chuyện nào
-      </div>
     </v-list>
+    <div v-if="loading" class="text-center pa-4"><v-progress-circular indeterminate color="primary" /></div>
+    <div v-if="!loading && conversations.length === 0" class="text-center pa-4 text-grey">Chưa có cuộc hội thoại nào</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import type { Conversation } from "@/composables/use-chat";
-import { api } from "@/api/index";
+import type { Conversation } from '@/composables/use-chat';
 
-defineProps<{
-  conversations: Conversation[];
-  selectedId: string | null;
+defineProps<{ 
+  conversations: Conversation[]; 
+  selectedId: string | null; 
   loading: boolean;
-  search: string;
+  search?: string;
 }>();
 
-defineEmits<{
-  select: [id: string];
-  "update:search": [value: string];
-  "filter-account": [accountId: string | null];
-}>();
+defineEmits<{ select: [id: string] }>();
 
-const accountOptions = ref<{ text: string; value: string }[]>([]);
-const selectedAccountId = ref<string | null>(null);
-
-onMounted(async () => {
-  try {
-    const res = await api.get("/zalo-accounts");
-    const accounts = Array.isArray(res.data)
-      ? res.data
-      : res.data.accounts || [];
-    accountOptions.value = accounts.map((a: any) => ({
-      text: a.displayName || a.zaloUid || a.id,
-      value: a.id,
-    }));
-  } catch {
-    // Non-critical — filter just won't show accounts
-  }
-});
-
-function lastMessagePreview(conv: Conversation): string {
-  const msg = conv.messages?.[0];
-  if (!msg) return "";
-  if (msg.isDeleted) return "(đã thu hồi)";
-  const prefix = msg.senderType === "self" ? "Bạn: " : "";
-
-  switch (msg.contentType) {
-    case "image":
-      return prefix + "📷 Hình ảnh";
-    case "sticker":
-      return prefix + "🏷️ Sticker";
-    case "video":
-      return prefix + "🎥 Video";
-    case "voice":
-      return prefix + "🎤 Tin nhắn thoại";
-    case "gif":
-      return prefix + "GIF";
-    case "file":
-      return prefix + "📎 Tệp đính kèm";
-    case "link":
-      return prefix + "🔗 Liên kết";
-    case "call":
-      return prefix + "📞 " + getCallPreview(msg.content);
-    case "link_preview":
-      return prefix + "🔗 " + getLinkPreviewText(msg.content);
-    case "group_link":
-      return prefix + "👥 Link tham gia nhóm";
-    case "contact_card":
-      return prefix + "👤 Danh thiếp liên hệ";
-    case "bubble":
-      return prefix + "Tin nhắn đặc biệt";
-    case "location":
-      return prefix + "📍 Vị trí";
-    case "rich":
-      return prefix + "Tin nhắn đặc biệt";
-  }
-
-  // Reminder/calendar messages
-  if (msg.content) {
-    try {
-      const p = JSON.parse(msg.content);
-      if (p.action === "msginfo.actionlist" && p.title) {
-        return prefix + "📅 " + p.title.slice(0, 50);
-      }
-      // Bất kỳ JSON nào không xác định → thử lấy description hoặc title
-      if (typeof p === "object" && p !== null) {
-        const readable = p.description || p.title || p.msg || "";
-        if (readable && !readable.includes("sendBubbleMessage")) {
-          return prefix + String(readable).slice(0, 60);
-        }
-        return prefix + "Tin nhắn đặc biệt";
-      }
-    } catch {
-      /* not JSON — plain text bên dưới */
-    }
-  }
-
-  const text = msg.content || "";
-  return prefix + (text.length > 60 ? text.slice(0, 60) + "..." : text);
-}
-
-function getCallPreview(content: string | null): string {
-  try {
-    const p = JSON.parse(content || "");
-    const params =
-      typeof p.params === "string" ? JSON.parse(p.params) : p.params;
-    const secs: number = params?.duration ?? 0;
-    if (secs === 0) return "Cuộc gọi nhỡ";
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return "Cuộc gọi thoại " + (m > 0 ? `${m} phút ${s} giây` : `${s} giây`);
-  } catch {
-    return "Cuộc gọi thoại";
-  }
-}
-
-function getLinkPreviewText(content: string | null): string {
-  try {
-    const p = JSON.parse(content || "");
-    const href: string = p.href || p.title || "";
-    try {
-      return new URL(href).hostname.replace("www.", "");
-    } catch {}
-    return href.slice(0, 50) || "Liên kết";
-  } catch {
-    return "Liên kết";
-  }
-}
-
-function formatTime(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
+function formatTime(d: string | null) {
+  if (!d) return '';
+  const date = new Date(d);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+}
 
-  if (diffMins < 1) return "Vừa xong";
-  if (diffMins < 60) return `${diffMins} phút`;
-
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} giờ`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "Hôm qua";
-  if (diffDays < 7) return `${diffDays} ngày`;
-
-  return date.toLocaleDateString("vi-VN");
+function getPreviewText(conv: Conversation) {
+  const msg = conv.messages?.[0];
+  if (!msg) return 'Chưa có tin nhắn';
+  if (msg.isDeleted) return '(Tin nhắn đã thu hồi)';
+  if (msg.contentType === 'image') return '[Hình ảnh]';
+  if (msg.contentType === 'sticker') return '[Sticker]';
+  if (msg.contentType === 'file') return '[Tệp tin]';
+  
+  const content = msg.content || '';
+  if (content.startsWith('{')) {
+    try { const p = JSON.parse(content); return p.title || p.description || '[Tin nhắn]'; } catch { return content; }
+  }
+  return content;
 }
 </script>
+<style scoped>
+.border-bottom { border-bottom: 1px solid rgba(0,0,0,0.05); }
+</style>

@@ -1,7 +1,3 @@
-/**
- * dashboard-routes.ts — KPI, message volume, pipeline, sources, and appointment stats.
- * All routes require JWT auth, scoped to user's orgId.
- */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
@@ -93,7 +89,7 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         ORDER BY date ASC
       `;
 
-      const data = rows.map((r) => ({
+      const data = rows.map((r: { date: Date | string; sent: bigint; received: bigint }) => ({ // <--- ĐÃ SỬA DÒNG NÀY
         date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
         sent: Number(r.sent),
         received: Number(r.received),
@@ -115,7 +111,7 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         where: { orgId, status: { not: null } },
         _count: true,
       });
-      return { data: pipeline.map((p) => ({ status: p.status, count: p._count })) };
+      return { data: pipeline.map((p: { status: string | null; _count: number }) => ({ status: p.status, count: p._count })) }; // <--- ĐÃ SỬA DÒNG NÀY
     } catch (err) {
       logger.error('[dashboard] Pipeline error:', err);
       return reply.status(500).send({ error: 'Failed to fetch pipeline data' });
@@ -131,7 +127,7 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         where: { orgId, source: { not: null } },
         _count: true,
       });
-      return { data: sources.map((s) => ({ source: s.source, count: s._count })) };
+      return { data: sources.map((s: { source: string | null; _count: number }) => ({ source: s.source, count: s._count })) }; // <--- ĐÃ SỬA DÒNG NÀY
     } catch (err) {
       logger.error('[dashboard] Sources error:', err);
       return reply.status(500).send({ error: 'Failed to fetch source data' });
@@ -156,7 +152,7 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         _count: true,
       });
 
-      return { data: stats.map((s) => ({ status: s.status, count: s._count })) };
+      return { data: stats.map((s: { status: string | null; _count: number }) => ({ status: s.status, count: s._count })) }; // <--- ĐÃ SỬA DÒNG NÀY
     } catch (err) {
       logger.error('[dashboard] Appointments error:', err);
       return reply.status(500).send({ error: 'Failed to fetch appointment stats' });

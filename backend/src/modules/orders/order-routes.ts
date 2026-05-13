@@ -1,7 +1,3 @@
-/**
- * Order management routes — CRUD + stats + per-staff report.
- * All routes require authentication via authMiddleware.
- */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
@@ -170,18 +166,18 @@ export async function orderRoutes(app: FastifyInstance) {
       _sum: { totalAmount: true },
     });
 
-    const userIds = staffStats.map(s => s.createdByUserId);
+    const userIds = staffStats.map((s: { createdByUserId: string }) => s.createdByUserId); // <--- ĐÃ SỬA DÒNG NÀY
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, fullName: true },
     });
-    const userMap = new Map(users.map(u => [u.id, u.fullName]));
+    const userMap = new Map(users.map((u: { id: string; fullName: string }) => [u.id, u.fullName])); // <--- ĐÃ SỬA DÒNG NÀY
 
-    const result = staffStats.map(s => ({
+    const result = staffStats.map((s: { createdByUserId: string; _count: number; _sum: { totalAmount: number | null } }) => ({ // <--- ĐÃ SỬA DÒNG NÀY
       userId: s.createdByUserId,
       fullName: userMap.get(s.createdByUserId) || 'Unknown',
       orderCount: s._count,
-      totalRevenue: s._sum.totalAmount || 0,
+      totalAmount: s._sum.totalAmount || 0,
     }));
 
     return { staffStats: result };

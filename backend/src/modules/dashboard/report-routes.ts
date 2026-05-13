@@ -1,8 +1,3 @@
-/**
- * report-routes.ts — Detailed reports for messages, contacts, appointments, and Excel export.
- * All routes require JWT auth, scoped to user's orgId.
- * Sheet builders are in excel-sheet-builders.ts.
- */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import ExcelJS from 'exceljs';
 import { prisma } from '../../shared/database/prisma-client.js';
@@ -51,7 +46,7 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
         ORDER BY date ASC
       `;
 
-      const data = rows.map((r) => ({
+      const data = rows.map((r: { date: Date | string; sent: bigint; received: bigint; total: bigint }) => ({ // <--- ĐÃ SỬA DÒNG NÀY
         date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
         sent: Number(r.sent),
         received: Number(r.received),
@@ -94,11 +89,11 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
       return {
         from,
         to,
-        newPerDay: newPerDay.map((r) => ({
+        newPerDay: newPerDay.map((r: { date: Date | string; count: bigint }) => ({ // <--- ĐÃ SỬA DÒNG NÀY
           date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
           count: Number(r.count),
         })),
-        byStatus: statusDist.map((s) => ({
+        byStatus: statusDist.map((s: { status: string | null; _count: number }) => ({ // <--- ĐÃ SỬA DÒNG NÀY
           status: s.status,
           count: s._count,
         })),
@@ -135,8 +130,8 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
       return {
         from,
         to,
-        byStatus: byStatus.map((s) => ({ status: s.status, count: s._count })),
-        byType: byType.map((t) => ({ type: t.type, count: t._count })),
+        byStatus: byStatus.map((s: { status: string | null; _count: number }) => ({ status: s.status, count: s._count })), // <--- ĐÃ SỬA DÒNG NÀY
+        byType: byType.map((t: { type: string | null; _count: number }) => ({ type: t.type, count: t._count })), // <--- ĐÃ SỬA DÒNG NÀY
       };
     } catch (err) {
       logger.error('[reports] Appointments error:', err);

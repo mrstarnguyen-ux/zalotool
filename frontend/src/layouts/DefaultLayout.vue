@@ -59,6 +59,21 @@
 
         <div class="crm-divider"></div>
 
+        <!-- Label item separate group -->
+        <div class="crm-nav-group">
+          <router-link
+            v-for="item in labelMenu" :key="item.path"
+            :to="item.path" class="crm-nav-item"
+            active-class="crm-nav-item--active"
+            :title="rail ? item.title : undefined"
+          >
+            <v-icon size="18" class="crm-nav-icon">{{ item.icon }}</v-icon>
+            <span v-show="!rail" class="crm-nav-label">{{ item.title }}</span>
+          </router-link>
+        </div>
+
+        <div class="crm-divider"></div>
+
         <!-- Config group -->
         <div class="crm-nav-group">
           <div v-show="!rail" class="crm-nav-section-label">Cấu hình</div>
@@ -169,13 +184,17 @@ const analyticsMenu = [
   { title: 'Báo cáo', icon: 'mdi-chart-line', path: '/reports' },
 ];
 
+const labelMenu = [
+  { title: 'Nhãn hội thoại', icon: 'mdi-tag-outline', path: '/labels' },
+];
+
 const configMenu = [
   { title: 'Tài khoản Zalo', icon: 'mdi-cellphone-link', path: '/zalo-accounts' },
   { title: 'Cài đặt',        icon: 'mdi-cog-outline',    path: '/settings'      },
   { title: 'API & Webhook',  icon: 'mdi-api',            path: '/api-settings'  },
 ];
 
-const allItems = [...mainMenu, ...analyticsMenu, ...configMenu];
+const allItems = [...mainMenu, ...analyticsMenu, ...labelMenu, ...configMenu];
 
 const currentPageTitle = computed(() => {
   // exact match for root, prefix match for others
