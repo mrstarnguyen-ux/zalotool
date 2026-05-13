@@ -1,0 +1,51 @@
+# ==========================================
+# 1. Loại trừ các thư mục cài đặt & Build (Chung và riêng cho Back/Front)
+# ==========================================
+node_modules/
+dist/
+.next/
+.nuxt/
+out/
+build/
+.cache/
+
+# Cho backend và frontend nằm riêng biệt
+backend/node_modules/
+backend/dist/
+frontend/node_modules/
+frontend/dist/
+
+# ==========================================
+# 2. Loại trừ toàn bộ thư mục Backup dữ liệu (Rất nặng & lộ data)
+# ==========================================
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+*.log
+fix-duplicate-contacts.sql
+
+# ==========================================
+# 3. Loại trừ các file cấu hình bảo mật môi trường (Rất quan trọng)
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# ==========================================
+# 4. Loại trừ các file cấu hình hệ thống và IDE phát sinh
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
